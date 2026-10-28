@@ -41,7 +41,7 @@ function e(mixed $value): string
 <nav class="navbar navbar-dark bg-dark">
     <div class="container">
         <a class="navbar-brand" href="index.php">PHONE STORE</a>
-        <div class="d-flex align-items-center gap-3"><a class="btn btn-outline-light btn-sm" href="products.php">Quản lý sản phẩm</a><span class="text-white">Quản lý cửa hàng điện thoại</span></div>
+        <div class="d-flex align-items-center gap-2"><a class="btn btn-outline-light btn-sm" href="products.php">Sản phẩm</a><a class="btn btn-outline-light btn-sm" href="customers.php">Khách hàng</a><a class="btn btn-outline-light btn-sm" href="orders.php">Đơn hàng</a><span class="text-white d-none d-lg-inline">Phone Store</span></div>
     </div>
 </nav>
 
@@ -59,8 +59,8 @@ function e(mixed $value): string
         <div class="col-md-4">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-body">
-                    <div class="text-muted">Tổng số sản phẩm</div>
-                    <div class="fs-3 fw-bold"><?= $totalProducts ?></div>
+                    <div class="text-muted">Tổng số sản phẩm <span class="badge text-bg-success" id="live-status">Live</span></div>
+                    <div class="fs-3 fw-bold" id="product-count"><?= $totalProducts ?></div>
                 </div>
             </div>
         </div>
@@ -75,8 +75,8 @@ function e(mixed $value): string
         <div class="col-md-4">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-body">
-                    <div class="text-muted">Trạng thái</div>
-                    <div class="fs-4 fw-bold text-success">Đang hoạt động</div>
+                    <div class="text-muted">Khách hàng / Đơn hàng</div>
+                    <div class="fs-4 fw-bold"><span id="customer-count">—</span> / <span id="order-count">—</span></div>
                 </div>
             </div>
         </div>
@@ -122,7 +122,22 @@ function e(mixed $value): string
         </div>
     </section>
 
-    <p class="text-center text-muted mt-4">Dự án CT275 – Công nghệ Web</p>
+    <p class="text-center text-muted mt-4">Dự án CT275 – Công nghệ Web · Thống kê cập nhật trực tiếp qua Server-Sent Events (SSE).</p>
+<script>
+(() => {
+  const status = document.getElementById('live-status');
+  if (!window.EventSource) { status.textContent = 'Không hỗ trợ SSE'; status.className = 'badge text-bg-warning'; return; }
+  const stream = new EventSource('live_events.php');
+  stream.addEventListener('stats', event => {
+    const data = JSON.parse(event.data);
+    document.getElementById('product-count').textContent = data.products;
+    document.getElementById('customer-count').textContent = data.customers;
+    document.getElementById('order-count').textContent = data.orders;
+    status.textContent = 'Live'; status.className = 'badge text-bg-success';
+  });
+  stream.onerror = () => { status.textContent = 'Đang kết nối lại'; status.className = 'badge text-bg-warning'; };
+})();
+</script>
 </main>
 </body>
 </html>
