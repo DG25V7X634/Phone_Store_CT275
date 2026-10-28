@@ -11,8 +11,8 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
         header('Location: customers.php'); exit;
     }
     $id=(int)($_POST['id']??0); $name=trim((string)($_POST['full_name']??'')); $phone=trim((string)($_POST['phone']??'')); $email=trim((string)($_POST['email']??'')); $address=trim((string)($_POST['address']??''));
-    if ($name==='' || mb_strlen($name)>150) $errors[]='Họ tên bắt buộc, tối đa 150 ký tự.';
-    if ($phone==='' || mb_strlen($phone)>30) $errors[]='Số điện thoại bắt buộc, tối đa 30 ký tự.';
+    if ($name==='' || (function_exists('mb_strlen') ? mb_strlen($name, 'UTF-8') : strlen($name))>150) $errors[]='Họ tên bắt buộc, tối đa 150 ký tự.';
+    if ($phone==='' || (function_exists('mb_strlen') ? mb_strlen($phone, 'UTF-8') : strlen($phone))>30) $errors[]='Số điện thoại bắt buộc, tối đa 30 ký tự.';
     if ($email!=='' && !filter_var($email,FILTER_VALIDATE_EMAIL)) $errors[]='Email không hợp lệ.';
     if (!$errors) try {
       if ($id>0) { $st=$pdo->prepare('UPDATE ps_customers SET full_name=?,phone=?,email=?,address=? WHERE id=?'); $st->execute([$name,$phone,$email?:null,$address?:null,$id]); $msg='Đã cập nhật khách hàng.'; }
