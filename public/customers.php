@@ -5,9 +5,20 @@ $errors=[]; $editing=null;
 if ($_SERVER['REQUEST_METHOD']==='POST') {
     verify_csrf(); $action=(string)($_POST['action']??'save');
     if ($action==='delete') {
-        $id=filter_input(INPUT_POST,'id',FILTER_VALIDATE_INT);
-        try { $st=$pdo->prepare('DELETE FROM ps_customers WHERE id=?'); $st->execute([$id]); $_SESSION['flash']=['message'=>'Đã xóa khách hàng.','type'=>'success']; }
-        catch (PDOException $e) { $_SESSION['flash']=['message'=>'Không thể xóa khách hàng đã có đơn hàng.','type'=>'warning']; }
+        $id=filter_var($_POST['id'] ?? null, FILTER_VALIDATE_INT);
+        if (!$id || $id < 1) {
+            $_SESSION['flash']=['message'=>'Mã khách hàng không hợp lệ.','type'=>'danger'];
+        } else {
+            try {
+                $st=$pdo->prepare('DELETE FROM ps_customers WHERE id=?');
+                $st->execute([$id]);
+                $_SESSION['flash'] = $st->rowCount()
+                    ? ['message'=>'Đã xóa khách hàng.','type'=>'success']
+                    : ['message'=>'Không tìm thấy khách hàng để xóa.','type'=>'warning'];
+            } catch (PDOException $e) {
+                $_SESSION['flash']=['message'=>'Không thể xóa khách hàng đã có đơn hàng.','type'=>'warning'];
+            }
+        }
         header('Location: customers.php'); exit;
     }
     $id=(int)($_POST['id']??0); $name=trim((string)($_POST['full_name']??'')); $phone=trim((string)($_POST['phone']??'')); $email=trim((string)($_POST['email']??'')); $address=trim((string)($_POST['address']??''));

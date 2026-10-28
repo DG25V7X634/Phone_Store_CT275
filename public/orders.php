@@ -4,9 +4,55 @@ require_once __DIR__ . '/includes/common.php';
 $errors=[];
 if ($_SERVER['REQUEST_METHOD']==='POST') {
  verify_csrf(); $action=(string)($_POST['action']??'create');
- if ($action==='status') { $id=(int)($_POST['id']??0); $status=(string)($_POST['status']??''); if(in_array($status,['Mới','Đang xử lý','Đã giao','Đã hủy'],true)){ $st=$pdo->prepare('UPDATE ps_orders SET status=? WHERE id=?');$st->execute([$status,$id]);$_SESSION['flash']=['message'=>'Đã cập nhật trạng thái đơn hàng.','type'=>'success'];} header('Location: orders.php');exit; }
+ if ($action === 'status') {
+     $id = filter_var($_POST['id'] ?? null, FILTER_VALIDATE_INT);
+     $status = (string)($_POST['status'] ?? '');
+     $allowedStatuses = ['Mới', 'Đang xử lý', 'Đã giao', 'Đã hủy'];
+     if (!$id || $id < 1 || !in_array($status, $allowedStatuses, true)) {
+         $_SESSION['flash'] = ['message' => 'Mã đơn hàng hoặc trạng thái không hợp lệ.', 'type' => 'danger'];
+         header('Location: orders.php'); exit;
+     }
+     try {
+         $pdo->beginTransaction();
+         $orderStmt = $pdo->prepare('SELECT id, status FROM ps_orders WHERE id = ? FOR UPDATE');
+         $orderStmt->execute([$id]);
+         $currentOrder = $orderStmt->fetch();
+         if (!$currentOrder) {
+             throw new RuntimeException('Không tìm thấy đơn hàng.');
+         }
+         $oldStatus = (string)$currentOrder['status'];
+         // Hủy đơn thì hoàn kho; mở lại đơn đã hủy thì trừ kho lại nếu đủ hàng.
+         if ($oldStatus !== $status && $oldStatus !== 'Đã hủy' && $status === 'Đã hủy') {
+             $itemsStmt = $pdo->prepare('SELECT product_id, quantity FROM ps_order_items WHERE order_id = ?');
+             $itemsStmt->execute([$id]);
+             foreach ($itemsStmt->fetchAll() as $item) {
+                 $stockStmt = $pdo->prepare('UPDATE products SET quantity = quantity + ? WHERE id = ?');
+                 $stockStmt->execute([(int)$item['quantity'], (int)$item['product_id']]);
+             }
+         } elseif ($oldStatus === 'Đã hủy' && $status !== 'Đã hủy') {
+             $itemsStmt = $pdo->prepare('SELECT product_id, quantity FROM ps_order_items WHERE order_id = ?');
+             $itemsStmt->execute([$id]);
+             foreach ($itemsStmt->fetchAll() as $item) {
+                 $stockStmt = $pdo->prepare('UPDATE products SET quantity = quantity - ? WHERE id = ? AND quantity >= ?');
+                 $quantity = (int)$item['quantity'];
+                 $stockStmt->execute([$quantity, (int)$item['product_id'], $quantity]);
+                 if ($stockStmt->rowCount() !== 1) {
+                     throw new RuntimeException('Không đủ tồn kho để mở lại đơn đã hủy.');
+                 }
+             }
+         }
+         $updateStmt = $pdo->prepare('UPDATE ps_orders SET status = ? WHERE id = ?');
+         $updateStmt->execute([$status, $id]);
+         $pdo->commit();
+         $_SESSION['flash'] = ['message' => 'Đã cập nhật trạng thái đơn hàng.', 'type' => 'success'];
+     } catch (Throwable $e) {
+         if ($pdo->inTransaction()) $pdo->rollBack();
+         $_SESSION['flash'] = ['message' => $e instanceof RuntimeException ? $e->getMessage() : 'Không thể cập nhật trạng thái đơn hàng.', 'type' => 'danger'];
+     }
+     header('Location: orders.php'); exit;
+ }
  $customerId=(int)($_POST['customer_id']??0); $productId=(int)($_POST['product_id']??0); $qty=filter_var($_POST['quantity']??null,FILTER_VALIDATE_INT); $note=trim((string)($_POST['note']??''));
- if($customerId<1)$errors[]='Hãy chọn khách hàng.'; if($productId<1)$errors[]='Hãy chọn sản phẩm.'; if($qty===false||$qty<1||$qty>1000)$errors[]='Số lượng phải từ 1 đến 1000.';
+ if($customerId<1)$errors[]='Hãy chọn khách hàng.'; if($productId<1)$errors[]='Hãy chọn sản phẩm.'; if($qty===false||$qty<1||$qty>1000)$errors[]='Số lượng phải từ 1 đến 1000.'; if((function_exists('mb_strlen') ? mb_strlen($note, 'UTF-8') : strlen($note)) > 500)$errors[]='Ghi chú không được vượt quá 500 ký tự.';
  if(!$errors) try { $pdo->beginTransaction(); $c=$pdo->prepare('SELECT id FROM ps_customers WHERE id=?');$c->execute([$customerId]); if(!$c->fetch()) throw new RuntimeException('Khách hàng không tồn tại.'); $p=$pdo->prepare('SELECT id,price,quantity FROM products WHERE id=? FOR UPDATE');$p->execute([$productId]);$product=$p->fetch();if(!$product)throw new RuntimeException('Sản phẩm không tồn tại.');if((int)$product['quantity']<(int)$qty)throw new RuntimeException('Số lượng tồn kho không đủ.');$total=(float)$product['price']*(int)$qty;$ins=$pdo->prepare('INSERT INTO ps_orders(customer_id,total_amount,note) VALUES(?,?,?)');$ins->execute([$customerId,$total,$note?:null]);$orderId=(int)$pdo->lastInsertId();$item=$pdo->prepare('INSERT INTO ps_order_items(order_id,product_id,quantity,unit_price) VALUES(?,?,?,?)');$item->execute([$orderId,$productId,(int)$qty,$product['price']]);$stock=$pdo->prepare('UPDATE products SET quantity=quantity-? WHERE id=?');$stock->execute([(int)$qty,$productId]);$pdo->commit();$_SESSION['flash']=['message'=>'Đã tạo đơn hàng #'.$orderId.' thành công.','type'=>'success'];header('Location: orders.php');exit; } catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();$errors[]=$e instanceof RuntimeException?$e->getMessage():'Không thể tạo đơn hàng. Hãy kiểm tra cấu trúc cơ sở dữ liệu.';}
 }
 $customers=$pdo->query('SELECT id,full_name,phone FROM ps_customers ORDER BY full_name')->fetchAll();$products=$pdo->query('SELECT id,name,price,quantity FROM products ORDER BY name')->fetchAll();$q=trim((string)($_GET['q']??''));$st=$pdo->prepare('SELECT o.*,c.full_name,c.phone,(SELECT COUNT(*) FROM ps_order_items i WHERE i.order_id=o.id) item_count FROM ps_orders o JOIN ps_customers c ON c.id=o.customer_id WHERE CAST(o.id AS CHAR) LIKE ? OR c.full_name LIKE ? ORDER BY o.id DESC');$like="%$q%";$st->execute([$like,$like]);$orders=$st->fetchAll();$flash=$_SESSION['flash']??null;unset($_SESSION['flash']);

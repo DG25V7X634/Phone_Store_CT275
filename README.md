@@ -1,6 +1,6 @@
 # Phone Store — CT275 Công nghệ Web
 
-Học kỳ 1, năm học 2026–2027. Website quản lý cửa hàng điện thoại sử dụng PHP 8.5+, MySQL 8 và Bootstrap 5.
+Học kỳ 1, năm học 2026–2027. Website quản lý cửa hàng điện thoại sử dụng PHP 8.2+ (khuyến nghị PHP 8.5), MySQL 8 và Bootstrap 5.
 
 ## Cấu hình nhanh trên Windows (CMD)
 
@@ -45,3 +45,17 @@ Thay `USERNAME/REPOSITORY` bằng repo của bạn. Kiểm tra `git status` trư
 - MSSV: DG25V7X634
 - Sinh viên: Đặng Thanh Vân
 - Học phần: CT275 — Công nghệ Web
+
+
+## Checklist trước khi nộp
+
+- [ ] Sao chép `.env.example` thành `.env` và điền mật khẩu MySQL cục bộ. Không chia sẻ `.env`.
+- [ ] Chạy `database/updates_ct275.sql` trong database `phone_store`; script không xóa bảng hoặc dữ liệu.
+- [ ] Mở `http://127.0.0.1:8000/index.php`, kiểm tra trang tổng quan và các liên kết.
+- [ ] Kiểm tra thêm/sửa/xóa sản phẩm, tìm kiếm và upload ảnh.
+- [ ] Kiểm tra thêm/sửa/xóa khách hàng; thử xóa khách hàng đã có đơn để xác nhận hệ thống chặn.
+- [ ] Tạo đơn hàng thử, xác nhận tồn kho giảm; đổi trạng thái sang `Đã hủy` để xác nhận tồn kho được hoàn lại; thử mở lại đơn để xác nhận hệ thống kiểm tra tồn kho.
+- [ ] Trong DevTools → Network, kiểm tra `products.php` có `ETag` và phản hồi `304` khi gửi `If-None-Match`; kiểm tra `live_events.php` có sự kiện `stats`.
+- [ ] Chạy `git status` và `git log --oneline`; cấu hình remote GitHub riêng rồi `git push` nếu cần nộp liên kết GitHub.
+
+Lưu ý: kiểm tra cú pháp PHP bằng `php -l` không thay thế việc chạy thử tích hợp trên máy có MySQL và xác minh các chức năng trong trình duyệt.

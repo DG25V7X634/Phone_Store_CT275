@@ -1,10 +1,13 @@
--- Chạy một lần trong MySQL Workbench sau khi chọn database phone_store.
+-- PHONE STORE - BO SUNG CHUC NANG QUAN LY KHACH HANG VA DON HANG
+-- Ban an toan de chay lai trong MySQL Workbench.
+-- Khong xoa database, khong xoa bang, khong xoa du lieu san co.
+
 USE phone_store;
 
--- Ảnh sản phẩm
-ALTER TABLE products ADD COLUMN image_path VARCHAR(255) NULL;
+-- Cot image_path da ton tai trong bang products theo ket qua kiem tra truoc,
+-- nen khong chay ALTER TABLE ADD COLUMN image_path lan nua.
 
--- Các bảng nghiệp vụ riêng của bài tập, đặt tên ps_* để không phá bảng cũ.
+-- 1. Bang khach hang
 CREATE TABLE IF NOT EXISTS ps_customers (
   id INT AUTO_INCREMENT PRIMARY KEY,
   full_name VARCHAR(150) NOT NULL,
@@ -15,6 +18,7 @@ CREATE TABLE IF NOT EXISTS ps_customers (
   UNIQUE KEY uq_ps_customers_phone (phone)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 2. Bang don hang
 CREATE TABLE IF NOT EXISTS ps_orders (
   id INT AUTO_INCREMENT PRIMARY KEY,
   customer_id INT NOT NULL,
@@ -26,6 +30,7 @@ CREATE TABLE IF NOT EXISTS ps_orders (
     ON UPDATE CASCADE ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 3. Chi tiet don hang
 CREATE TABLE IF NOT EXISTS ps_order_items (
   id INT AUTO_INCREMENT PRIMARY KEY,
   order_id INT NOT NULL,
@@ -37,3 +42,10 @@ CREATE TABLE IF NOT EXISTS ps_order_items (
   CONSTRAINT fk_ps_items_product FOREIGN KEY (product_id) REFERENCES products(id)
     ON UPDATE CASCADE ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 4. Kiem tra ket qua sau khi chay
+SHOW TABLES LIKE 'ps_%';
+DESCRIBE ps_customers;
+DESCRIBE ps_orders;
+DESCRIBE ps_order_items;
+DESCRIBE products;
