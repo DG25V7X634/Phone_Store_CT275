@@ -30,17 +30,15 @@ $customerColumns = table_columns($pdo, $customerTable);
 $orderColumns = table_columns($pdo, $orderTable);
 $productColumns = table_columns($pdo, $productTable);
 
-$orderItemTable = null;
-foreach (['order_items', 'order_details', 'ps_order_items'] as $candidate) {
-    try {
-        $pdo->query("SHOW COLUMNS FROM `{$candidate}`");
-        $orderItemTable = $candidate;
-        break;
-    } catch (Throwable $e) {
-        // Thử tên bảng chi tiết đơn hàng kế tiếp.
-    }
+// Dự án dùng duy nhất bảng order_items theo database/updates_ct275.sql.
+// Không dò tìm các tên bảng cũ hoặc bảng thay thế ngoài cấu trúc chuẩn.
+$orderItemTable = 'order_items';
+try {
+    $itemColumns = table_columns($pdo, $orderItemTable);
+} catch (PDOException $e) {
+    http_response_code(500);
+    exit('Thiếu bảng order_items. Hãy tạo CSDL phone_store và chạy database/updates_ct275.sql.');
 }
-$itemColumns = $orderItemTable ? table_columns($pdo, $orderItemTable) : [];
 
 $customerNameCol = first_column($customerColumns, ['name', 'full_name', 'customer_name']);
 $customerPhoneCol = first_column($customerColumns, ['phone', 'phone_number']);
@@ -122,9 +120,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($customerId < 1) $errors[] = 'Hãy chọn khách hàng.';
     if ($productId < 1) $errors[] = 'Hãy chọn sản phẩm.';
     if ($qty === false || $qty < 1 || $qty > 1000) $errors[] = 'Số lượng phải từ 1 đến 1000.';
-    if (mb_strlen($note, 'UTF-8') > 500) $errors[] = 'Ghi chú không được vượt quá 500 ký tự.';
+    if ((function_exists('mb_strlen') ? mb_strlen($note, 'UTF-8') : strlen($note)) > 500) {
+        $errors[] = 'Ghi chú không được vượt quá 500 ký tự.';
+    }
     if (!$orderItemTable || !$itemOrderCol || !$itemProductCol || !$itemQtyCol || !$itemPriceCol) {
-        $errors[] = 'Không tìm thấy bảng chi tiết đơn hàng phù hợp (order_items/order_details). Chưa tạo đơn để tránh mất dữ liệu.';
+        $errors[] = 'Không tìm thấy cấu trúc bảng order_items hợp lệ. Chưa tạo đơn để tránh mất dữ liệu.';
     }
     if (!$productNameCol || !$productPriceCol || !$productStockCol) {
         $errors[] = 'Cấu trúc bảng products không đủ các cột tên, giá và tồn kho.';

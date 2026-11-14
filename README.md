@@ -1,61 +1,35 @@
 # Phone Store — CT275 Công nghệ Web
 
-Học kỳ 1, năm học 2026–2027. Website quản lý cửa hàng điện thoại sử dụng PHP 8.2+ (khuyến nghị PHP 8.5), MySQL 8 và Bootstrap 5.
+Website quản lý cửa hàng điện thoại sử dụng PHP 8.5 (có thể chạy PHP 8.2+), MySQL 8 và Bootstrap 5. PHP cần bật `pdo_mysql` và `fileinfo`; `mbstring` được dùng nếu có.
 
-## Cấu hình nhanh trên Windows (CMD)
+## Cấu hình trên Windows
 
-1. Sao chép `.env.example` thành `.env`, sau đó sửa `DB_PASSWORD` thành mật khẩu MySQL trên máy của bạn. Không đưa `.env` lên GitHub.
-2. Trong MySQL Workbench, chọn database `phone_store`, mở và chạy toàn bộ `database/updates_ct275.sql` **một lần**.
-3. Mở CMD tại thư mục `public` và chạy:
+1. Sao chép `.env.example` thành `.env`, sửa `DB_PASSWORD` theo mật khẩu MySQL trên máy. Không chia sẻ hoặc đưa `.env` lên GitHub.
+2. Chạy toàn bộ `database/updates_ct275.sql` bằng MySQL Workbench hoặc phpMyAdmin. Script tạo database `phone_store` và mô hình đúng 05 bảng: `categories`, `products`, `customers`, `orders`, `order_items`.
+3. Mở CMD tại thư mục `public`, chạy:
    ```bat
    php -S 127.0.0.1:8000
    ```
 4. Truy cập `http://127.0.0.1:8000/index.php`.
 
-## Chức năng
+## Mô hình dữ liệu 05 bảng
 
-- Tổng quan cửa hàng và thống kê cập nhật trực tiếp bằng Server-Sent Events (SSE): `live_events.php`.
-- Quản lý sản phẩm: tìm kiếm, thêm, sửa, xóa; tải ảnh JPG/PNG/WebP tối đa 3 MB tại `product_image_upload.php`.
-- Quản lý khách hàng: thêm, sửa, xóa, tìm kiếm; không cho xóa khách hàng đang có đơn.
-- Quản lý đơn hàng: tạo đơn với khách hàng và sản phẩm, kiểm tra tồn kho, trừ tồn kho trong transaction; cập nhật trạng thái đơn.
-- HTTP caching ở `products.php`: ETag và phản hồi `304 Not Modified` khi nội dung không đổi.
-- PDO prepared statements, mã hóa đầu ra HTML, CSRF token cho các thao tác ghi.
+- `categories`: danh mục sản phẩm.
+- `products`: sản phẩm; `category_id` là khóa ngoại tùy chọn đến `categories.id`.
+- `customers`: khách hàng.
+- `orders`: đơn hàng.
+- `order_items`: chi tiết mặt hàng trong đơn.
 
-## Tính năng nâng cao để trình bày
+Không sử dụng bảng `ps_*`; không tạo `order_details` song song với `order_items`. Giao diện PHP hiện tại chưa có màn hình CRUD danh mục; bảng `categories` và cột `products.category_id` là phần nền dữ liệu, `category_id` cho phép NULL nên không làm gián đoạn các chức năng hiện có.
 
-1. **Upload tệp:** `product_image_upload.php`; kiểm tra MIME thực tế bằng `finfo`, giới hạn kích thước và tên tệp ngẫu nhiên.
-2. **HTTP caching:** mở Developer Tools → Network → tải lại `products.php`; kiểm tra header `ETag`, `Cache-Control`; lần yêu cầu có `If-None-Match` phù hợp có thể nhận `304`.
-3. **SSE:** mở trang chủ và Developer Tools → Network → `live_events.php`; dữ liệu `stats` được gửi khi thống kê thay đổi, heartbeat mỗi 5 giây.
+## Chức năng hiện tại
 
-## Git và GitHub
+- Trang tổng quan và thống kê cập nhật trực tiếp qua Server-Sent Events (SSE).
+- Quản lý sản phẩm: tìm kiếm, thêm, sửa, xóa, upload ảnh.
+- Quản lý khách hàng: thêm, sửa, xóa, tìm kiếm.
+- Quản lý đơn hàng: tạo đơn, kiểm tra tồn kho, trừ tồn kho, cập nhật trạng thái và hoàn kho khi hủy đơn.
+- PDO prepared statements, mã hóa đầu ra HTML và CSRF token cho thao tác ghi.
 
-Lịch sử Git cục bộ được khởi tạo trong thư mục dự án. Để đưa lên GitHub, tạo một repository trống rồi chạy:
+## Lưu ý kiểm thử
 
-```bat
-git remote add origin https://github.com/USERNAME/REPOSITORY.git
-git branch -M main
-git push -u origin main
-```
-
-Thay `USERNAME/REPOSITORY` bằng repo của bạn. Kiểm tra `git status` trước khi push và tuyệt đối không commit `.env`.
-
-## Thông tin học phần
-
-- Tên dự án: Website quản lý cửa hàng điện thoại Phone Store
-- MSSV: DG25V7X634
-- Sinh viên: Đặng Thanh Vân
-- Học phần: CT275 — Công nghệ Web
-
-
-## Checklist trước khi nộp
-
-- [ ] Sao chép `.env.example` thành `.env` và điền mật khẩu MySQL cục bộ. Không chia sẻ `.env`.
-- [ ] Chạy `database/updates_ct275.sql` trong database `phone_store`; script không xóa bảng hoặc dữ liệu.
-- [ ] Mở `http://127.0.0.1:8000/index.php`, kiểm tra trang tổng quan và các liên kết.
-- [ ] Kiểm tra thêm/sửa/xóa sản phẩm, tìm kiếm và upload ảnh.
-- [ ] Kiểm tra thêm/sửa/xóa khách hàng; thử xóa khách hàng đã có đơn để xác nhận hệ thống chặn.
-- [ ] Tạo đơn hàng thử, xác nhận tồn kho giảm; đổi trạng thái sang `Đã hủy` để xác nhận tồn kho được hoàn lại; thử mở lại đơn để xác nhận hệ thống kiểm tra tồn kho.
-- [ ] Trong DevTools → Network, kiểm tra `products.php` có `ETag` và phản hồi `304` khi gửi `If-None-Match`; kiểm tra `live_events.php` có sự kiện `stats`.
-- [ ] Chạy `git status` và `git log --oneline`; cấu hình remote GitHub riêng rồi `git push` nếu cần nộp liên kết GitHub.
-
-Lưu ý: kiểm tra cú pháp PHP bằng `php -l` không thay thế việc chạy thử tích hợp trên máy có MySQL và xác minh các chức năng trong trình duyệt.
+Cần chạy SQL và kiểm tra thực tế trên MySQL tại máy. `php -l` chỉ kiểm tra cú pháp PHP, không thay thế kiểm thử tích hợp. Sao lưu database trước khi chạy cập nhật trên CSDL cũ.

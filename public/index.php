@@ -126,16 +126,34 @@ function e(mixed $value): string
 <script>
 (() => {
   const status = document.getElementById('live-status');
-  if (!window.EventSource) { status.textContent = 'Không hỗ trợ SSE'; status.className = 'badge text-bg-warning'; return; }
-  const stream = new EventSource('live_events.php');
-  stream.addEventListener('stats', event => {
-    const data = JSON.parse(event.data);
-    document.getElementById('product-count').textContent = data.products;
-    document.getElementById('customer-count').textContent = data.customers;
-    document.getElementById('order-count').textContent = data.orders;
-    status.textContent = 'Live'; status.className = 'badge text-bg-success';
-  });
-  stream.onerror = () => { status.textContent = 'Đang kết nối lại'; status.className = 'badge text-bg-warning'; };
+  let busy = false;
+
+  async function refreshStats() {
+    if (busy) return;
+    busy = true;
+    try {
+      const response = await fetch('stats.php', {
+        cache: 'no-store',
+        headers: { 'Accept': 'application/json' }
+      });
+      if (!response.ok) throw new Error('Không tải được thống kê');
+      const data = await response.json();
+      document.getElementById('product-count').textContent = data.products;
+      document.getElementById('customer-count').textContent = data.customers;
+      document.getElementById('order-count').textContent = data.orders;
+      status.textContent = 'Live';
+      status.className = 'badge text-bg-success';
+    } catch (error) {
+      status.textContent = 'Chưa cập nhật';
+      status.className = 'badge text-bg-warning';
+    } finally {
+      busy = false;
+    }
+  }
+
+  refreshStats();
+  // Gọi một request ngắn mỗi 15 giây; không giữ kết nối PHP kéo dài.
+  window.setInterval(refreshStats, 15000);
 })();
 </script>
 </main>

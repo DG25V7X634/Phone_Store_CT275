@@ -1,51 +1,107 @@
--- PHONE STORE - BO SUNG CHUC NANG QUAN LY KHACH HANG VA DON HANG
--- Ban an toan de chay lai trong MySQL Workbench.
--- Khong xoa database, khong xoa bang, khong xoa du lieu san co.
+-- PHONE STORE CT275 - MO HINH CSDL CHUAN 05 BANG
+-- Tables: categories, products, customers, orders, order_items
+-- No ps_* tables. order_items is the only order-detail table.
+-- Safe for repeated execution; back up an existing database before migration.
 
+CREATE DATABASE IF NOT EXISTS phone_store
+  CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE phone_store;
 
--- Cot image_path da ton tai trong bang products theo ket qua kiem tra truoc,
--- nen khong chay ALTER TABLE ADD COLUMN image_path lan nua.
-
--- 1. Bang khach hang
-CREATE TABLE IF NOT EXISTS ps_customers (
+CREATE TABLE IF NOT EXISTS categories (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  full_name VARCHAR(150) NOT NULL,
-  email VARCHAR(190) NULL,
-  phone VARCHAR(30) NOT NULL,
-  address VARCHAR(255) NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE KEY uq_ps_customers_phone (phone)
+  name VARCHAR(100) NOT NULL,
+  description TEXT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 2. Bang don hang
-CREATE TABLE IF NOT EXISTS ps_orders (
+-- category_id is nullable so the current product-management screen continues to work.
+CREATE TABLE IF NOT EXISTS products (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(150) NOT NULL,
+  brand VARCHAR(100) NOT NULL,
+  price DECIMAL(15,2) NOT NULL DEFAULT 0,
+  quantity INT NOT NULL DEFAULT 0,
+  description TEXT NULL,
+  image_path VARCHAR(255) NULL,
+  category_id INT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_products_name (name),
+  INDEX idx_products_brand (brand),
+  INDEX idx_products_category (category_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS customers (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(150) NOT NULL,
+  phone VARCHAR(20) NOT NULL,
+  email VARCHAR(150) NULL,
+  address VARCHAR(255) NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_customers_phone (phone)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS orders (
   id INT AUTO_INCREMENT PRIMARY KEY,
   customer_id INT NOT NULL,
   order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   status ENUM('Mới','Đang xử lý','Đã giao','Đã hủy') NOT NULL DEFAULT 'Mới',
   total_amount DECIMAL(15,2) NOT NULL DEFAULT 0,
   note VARCHAR(500) NULL,
-  CONSTRAINT fk_ps_orders_customer FOREIGN KEY (customer_id) REFERENCES ps_customers(id)
+  CONSTRAINT fk_orders_customer FOREIGN KEY (customer_id) REFERENCES customers(id)
     ON UPDATE CASCADE ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 3. Chi tiet don hang
-CREATE TABLE IF NOT EXISTS ps_order_items (
+CREATE TABLE IF NOT EXISTS order_items (
   id INT AUTO_INCREMENT PRIMARY KEY,
   order_id INT NOT NULL,
   product_id INT NOT NULL,
   quantity INT NOT NULL,
   unit_price DECIMAL(15,2) NOT NULL,
-  CONSTRAINT fk_ps_items_order FOREIGN KEY (order_id) REFERENCES ps_orders(id)
+  CONSTRAINT fk_order_items_order FOREIGN KEY (order_id) REFERENCES orders(id)
     ON UPDATE CASCADE ON DELETE CASCADE,
-  CONSTRAINT fk_ps_items_product FOREIGN KEY (product_id) REFERENCES products(id)
+  CONSTRAINT fk_order_items_product FOREIGN KEY (product_id) REFERENCES products(id)
     ON UPDATE CASCADE ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 4. Kiem tra ket qua sau khi chay
-SHOW TABLES LIKE 'ps_%';
-DESCRIBE ps_customers;
-DESCRIBE ps_orders;
-DESCRIBE ps_order_items;
-DESCRIBE products;
+-- Ensure the category relationship exists even when upgrading an older products table.
+-- The stored procedure checks existing metadata before adding the column/constraint.
+DROP PROCEDURE IF EXISTS ensure_products_category_relation;
+DELIMITER //
+CREATE PROCEDURE ensure_products_category_relation()
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'products'
+      AND COLUMN_NAME = 'category_id'
+  ) THEN
+    ALTER TABLE products ADD COLUMN category_id INT NULL;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM INFORMATION_SCHEMA.STATISTICS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'products'
+      AND INDEX_NAME = 'idx_products_category'
+  ) THEN
+    ALTER TABLE products ADD INDEX idx_products_category (category_id);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS
+    WHERE CONSTRAINT_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'products'
+      AND CONSTRAINT_NAME = 'fk_products_category'
+  ) THEN
+    ALTER TABLE products
+      ADD CONSTRAINT fk_products_category
+      FOREIGN KEY (category_id) REFERENCES categories(id)
+      ON UPDATE CASCADE ON DELETE SET NULL;
+  END IF;
+END//
+DELIMITER ;
+CALL ensure_products_category_relation();
+DROP PROCEDURE ensure_products_category_relation;
+
+-- Verification: exactly five application tables.
+SHOW TABLES;
